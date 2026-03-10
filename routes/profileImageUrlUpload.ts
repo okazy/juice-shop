@@ -14,6 +14,27 @@ import { UserModel } from '../models/user'
 import * as utils from '../lib/utils'
 import logger from '../lib/logger'
 
+function getSafeImageExtension (rawUrl: string): string {
+  const allowedExt = new Set(['jpg', 'jpeg', 'png', 'svg', 'gif'])
+
+  try {
+    const url = new URL(rawUrl)
+    const pathname = url.pathname || ''
+    const lastSegment = pathname.split('/').filter(Boolean).slice(-1)[0] || ''
+    const dotIndex = lastSegment.lastIndexOf('.')
+    if (dotIndex !== -1 && dotIndex < lastSegment.length - 1) {
+      const candidate = lastSegment.slice(dotIndex + 1).toLowerCase()
+      if (allowedExt.has(candidate)) {
+        return candidate
+      }
+    }
+  } catch {
+    // ignore parsing errors and fall through to default
+  }
+
+  return 'jpg'
+}
+
 async function validateExternalUrl (rawUrl: string): Promise<URL> {
   let url: URL
   try {
@@ -72,7 +93,7 @@ export function profileImageUrlUpload () {
           if (!response.ok || !response.body) {
             throw new Error('url returned a non-OK status code or an empty body')
           }
-          const ext = ['jpg', 'jpeg', 'png', 'svg', 'gif'].includes(rawUrl.split('.').slice(-1)[0].toLowerCase()) ? rawUrl.split('.').slice(-1)[0].toLowerCase() : 'jpg'
+          const ext = getSafeImageExtension(rawUrl)
           const fileStream = fs.createWriteStream(`frontend/dist/frontend/assets/public/images/uploads/${loggedInUser.data.id}.${ext}`, { flags: 'w' })
           await finished(Readable.fromWeb(response.body as any).pipe(fileStream))
           const user = await UserModel.findByPk(loggedInUser.data.id)
