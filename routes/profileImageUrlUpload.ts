@@ -47,11 +47,20 @@ async function validateExternalUrl (rawUrl: string): Promise<URL> {
     throw new Error('Unsupported URL protocol')
   }
 
+  // Restrict outbound requests to a small allow-list of hostnames
+  const allowedHostnames = new Set<string>([
+    'images.example.com'
+  ])
+  const hostname = url.hostname.toLowerCase()
+  if (!allowedHostnames.has(hostname)) {
+    throw new Error('Hostname is not allowed')
+  }
+
   const lookup = dns.promises.lookup
-  const addresses = await lookup(url.hostname, { all: true })
+  const addresses = await lookup(hostname, { all: true })
 
   const isPrivateOrLoopback = (address: string): boolean => {
-    // IPv6 loopback or link-local
+    // IPv6 loopback or link-local / unique local
     if (address === '::1' || address.startsWith('fe80:') || address.startsWith('fc00:') || address.startsWith('fd00:')) {
       return true
     }
